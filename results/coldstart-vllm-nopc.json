@@ -1,0 +1,32 @@
+{
+  "engine": "vllm",
+  "prefix_caching": false,
+  "server_ready_s": 155.3,
+  "warm_up_s": 50.5,
+  "server_flags": [
+    "-m",
+    "vllm.entrypoints.openai.api_server",
+    "--model",
+    "Qwen/Qwen2.5-7B-Instruct",
+    "--dtype",
+    "bfloat16",
+    "--port",
+    "8000",
+    "--max-model-len",
+    "4096",
+    "--gpu-memory-utilization",
+    "0.9",
+    "--no-enable-prefix-caching"
+  ],
+  "engine_version": "0.20.2",
+  "torch_version": "2.11.0",
+  "gpu_name": "NVIDIA L4",
+  "driver_version": "580.95.05",
+  "gpu_memory_total": "23034 MiB",
+  "cuda_base_image": "debian_slim (prebuilt kernels)",
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "model_revision": "a09a35458c702b33eeacc393d103063234e8bc28",
+  "dtype": "bfloat16",
+  "max_model_len": 4096,
+  "gpu_memory_fraction": 0.9
+}

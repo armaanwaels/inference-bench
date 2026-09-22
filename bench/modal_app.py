@@ -201,8 +201,8 @@ def _loadgen_argv(engine: str, cell: dict, prefix_caching: bool, commit: str, ou
         str(warmup),
         "-max-tokens",
         str(MAX_TOKENS),
-        "-prefix-caching",
-        str(prefix_caching).lower(),
+        # Go's flag package needs the equals form for booleans: "-flag false" leaves it true.
+        f"-prefix-caching={str(prefix_caching).lower()}",
     ]
 
 

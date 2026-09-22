@@ -24,3 +24,14 @@ def test_estimate_stays_inside_the_budget():
     assert est["total_seconds"] / 60 < 30
     assert est["total_usd"] < 20
     assert est["total_usd"] == est["gpu_usd"] + est["cpu_and_memory_usd"]
+
+
+def test_loadgen_argv_uses_the_equals_form_for_booleans():
+    # "-prefix-caching false" would leave the flag true and overwrite the cached run's files.
+    import modal_app
+
+    argv = modal_app._loadgen_argv(
+        "vllm", {"bucket": "short", "concurrency": 32, "requests": 64}, False, "abc1234", "/tmp", 4
+    )
+    assert "-prefix-caching=false" in argv
+    assert "false" not in [a for a in argv if not a.startswith("-prefix-caching")]
