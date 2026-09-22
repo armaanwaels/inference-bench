@@ -10,7 +10,7 @@ smoke: loadgen     ## build every Modal image and check it on CPU, about one cen
 	uv run modal run bench/modal_app.py::smoke
 
 bench: loadgen     ## run the whole matrix on Modal, then write the report
-	uv run modal run bench/modal_app.py --confirm
+	uv run modal run bench/modal_app.py::main --confirm
 	$(MAKE) report
 
 report:            ## regenerate results/summary.md and the chart from results/
