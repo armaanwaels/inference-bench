@@ -1,0 +1,31 @@
+{
+  "engine": "sglang",
+  "prefix_caching": true,
+  "server_ready_s": 121.6,
+  "warm_up_s": 76.5,
+  "server_flags": [
+    "-m",
+    "sglang.launch_server",
+    "--model-path",
+    "Qwen/Qwen2.5-7B-Instruct",
+    "--dtype",
+    "bfloat16",
+    "--port",
+    "8000",
+    "--context-length",
+    "4096",
+    "--mem-fraction-static",
+    "0.9"
+  ],
+  "engine_version": "0.5.2",
+  "torch_version": "2.8.0",
+  "gpu_name": "NVIDIA L4",
+  "driver_version": "580.95.05",
+  "gpu_memory_total": "23034 MiB",
+  "cuda_base_image": "nvidia/cuda:12.8.1-devel-ubuntu22.04",
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "model_revision": "a09a35458c702b33eeacc393d103063234e8bc28",
+  "dtype": "bfloat16",
+  "max_model_len": 4096,
+  "gpu_memory_fraction": 0.9
+}
