@@ -55,6 +55,35 @@ def download() -> None:
     vol.commit()
 
 
+def _image_check(engine: str) -> dict:
+    """What a GPU container needs before it is worth paying for one."""
+    import shutil
+
+    checks = {
+        "engine": engine,
+        "matrix_import": MODEL,  # module level, so reaching here means matrix.py was importable
+    }
+    # The CPU image only downloads weights; loadgen and the engine live in the GPU images.
+    if engine != "cpu":
+        loadgen = shutil.which("loadgen")
+        checks["loadgen_on_path"] = bool(loadgen)
+        checks["loadgen_runs"] = False
+        if loadgen:
+            proc = subprocess.run([loadgen, "-help"], capture_output=True, text=True)
+            checks["loadgen_runs"] = "-concurrency" in (proc.stdout + proc.stderr)
+        cmd = _server_command(engine, prefix_caching=False)
+        checks["server_command"] = cmd[-1].startswith("--")
+        checks["engine_module"] = (
+            subprocess.run(
+                [sys.executable, "-c", f"import importlib.util as u; assert u.find_spec('{engine}')"],
+                capture_output=True,
+            ).returncode
+            == 0
+        )
+    checks["ok"] = all(v for k, v in checks.items() if isinstance(v, bool))
+    return checks
+
+
 def _server_command(engine: str, prefix_caching: bool) -> list[str]:
     if engine == "vllm":
         cmd = [
@@ -162,6 +191,34 @@ def run_vllm(cells: list[dict], prefix_caching: bool, commit: str) -> list[dict]
 @app.function(image=sglang_image, gpu=GPU, volumes={"/vol": vol}, timeout=60 * 60, cpu=4, memory=32 * 1024)
 def run_sglang(cells: list[dict], prefix_caching: bool, commit: str) -> list[dict]:
     return _run_cells("sglang", prefix_caching, cells, commit)
+
+
+@app.function(image=cpu_image, timeout=600)
+def smoke_cpu() -> dict:
+    return _image_check("cpu")
+
+
+@app.function(image=vllm_image, timeout=600)
+def smoke_vllm() -> dict:
+    return _image_check("vllm")
+
+
+@app.function(image=sglang_image, timeout=600)
+def smoke_sglang() -> dict:
+    return _image_check("sglang")
+
+
+@app.local_entrypoint()
+def smoke() -> None:
+    """Build every image and check it on CPU. Costs about a cent, no GPU."""
+    if not Path(LOADGEN).exists():
+        raise SystemExit(f"{LOADGEN} is missing; run `make loadgen` first")
+    failures = 0
+    for fn in (smoke_cpu, smoke_vllm, smoke_sglang):
+        report = fn.remote()
+        failures += not report["ok"]
+        print(f"{report['engine']:<7} {'ok' if report['ok'] else 'FAILED'}  {report}", flush=True)
+    raise SystemExit(1 if failures else 0)
 
 
 def _group(cells: list[Cell]) -> dict[tuple[str, bool], list[dict]]:

@@ -6,6 +6,9 @@ loadgen:           ## build the load generator for the Modal container
 matrix:            ## print the run matrix and the cost estimate, spends nothing
 	uv run python bench/matrix.py
 
+smoke: loadgen     ## build every Modal image and check it on CPU, about one cent
+	uv run modal run bench/modal_app.py::smoke
+
 bench: loadgen     ## run the whole matrix on Modal, then write the report
 	uv run modal run bench/modal_app.py --confirm
 	$(MAKE) report
