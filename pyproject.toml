@@ -1,0 +1,17 @@
+[project]
+name = "inference-bench"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = ["modal>=1.0", "matplotlib>=3.8"]
+
+[dependency-groups]
+dev = ["pytest>=8", "ruff>=0.16"]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
