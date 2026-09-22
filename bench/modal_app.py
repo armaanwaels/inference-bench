@@ -239,9 +239,9 @@ def _run_cells(engine: str, prefix_caching: bool, cells: list[dict], commit: str
             summary = json.loads(done.stdout)
             summary["environment"] = env
             summary["server_flags"] = flags[1:]
-            (out_dir / f"{engine}-{cell['bucket']}-c{cell['concurrency']}.json").write_text(
-                json.dumps(summary, indent=2)
-            )
+            # Same stem the load generator used, so this enriches its file rather than adding one.
+            stem = f"{engine}-{cell['bucket']}-c{cell['concurrency']}" + ("" if prefix_caching else "-nocache")
+            (out_dir / f"{stem}.json").write_text(json.dumps(summary, indent=2))
             summaries.append(summary)
     finally:
         proc.terminate()
