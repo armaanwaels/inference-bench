@@ -34,8 +34,18 @@ def _image(*packages: str) -> modal.Image:
     )
 
 
+# SGLang's FlashInfer backend compiles kernels at startup, so it needs nvcc from a devel base.
+CUDA_DEVEL_TAG = "nvidia/cuda:12.8.1-devel-ubuntu22.04"
+
 vllm_image = _image("vllm==0.20.2", "huggingface_hub[hf_transfer]==0.36.0")
-sglang_image = _image("sglang[all]==0.5.2", "huggingface_hub[hf_transfer]==0.36.0")
+sglang_image = (
+    modal.Image.from_registry(CUDA_DEVEL_TAG, add_python="3.11")
+    .apt_install("curl")
+    .pip_install("sglang[all]==0.5.2", "huggingface_hub[hf_transfer]==0.36.0")
+    .env({"HF_HOME": "/vol/hf", "TOKENIZERS_PARALLELISM": "false"})
+    .add_local_file(LOADGEN, "/usr/local/bin/loadgen", copy=True)
+    .add_local_file("bench/matrix.py", "/root/matrix.py", copy=True)
+)
 cpu_image = (
     modal.Image.debian_slim(python_version="3.11")
     .pip_install("huggingface_hub[hf_transfer]==0.36.0")
@@ -84,6 +94,35 @@ def _image_check(engine: str) -> dict:
     return checks
 
 
+def _environment(engine: str) -> dict:
+    """Everything needed to say what produced the numbers."""
+    from importlib.metadata import version
+
+    def sh(*cmd: str) -> str:
+        out = subprocess.run(cmd, capture_output=True, text=True)
+        return out.stdout.strip() if out.returncode == 0 else ""
+
+    gpu = sh("nvidia-smi", "--query-gpu=name,driver_version,memory.total", "--format=csv,noheader").split(", ")
+    revision = ""
+    snapshots = Path("/vol/hf/hub") / f"models--{MODEL.replace('/', '--')}" / "snapshots"
+    if snapshots.exists():
+        revision = next((d.name for d in snapshots.iterdir() if d.is_dir()), "")
+    return {
+        "engine": engine,
+        "engine_version": version(engine),
+        "torch_version": version("torch"),
+        "gpu_name": gpu[0] if gpu else "",
+        "driver_version": gpu[1] if len(gpu) > 1 else "",
+        "gpu_memory_total": gpu[2] if len(gpu) > 2 else "",
+        "cuda_base_image": CUDA_DEVEL_TAG if engine == "sglang" else "debian_slim (prebuilt kernels)",
+        "model": MODEL,
+        "model_revision": revision,
+        "dtype": DTYPE,
+        "max_model_len": MAX_MODEL_LEN,
+        "gpu_memory_fraction": GPU_MEMORY_FRACTION,
+    }
+
+
 def _server_command(engine: str, prefix_caching: bool) -> list[str]:
     if engine == "vllm":
         cmd = [
@@ -122,60 +161,88 @@ def _server_command(engine: str, prefix_caching: bool) -> list[str]:
     raise ValueError(engine)
 
 
-def _wait_for_server(proc: subprocess.Popen, limit_s: int = 900) -> None:
+def _wait_for_server(proc: subprocess.Popen, started: float, limit_s: int = 900) -> float:
+    """Seconds from process start to the health endpoint answering."""
     url = f"http://127.0.0.1:{PORT}/v1/models"
     deadline = time.time() + limit_s
     while time.time() < deadline:
         if proc.poll() is not None:
             raise RuntimeError(f"engine exited with code {proc.returncode} before serving")
         if subprocess.run(["curl", "-sf", url], capture_output=True).returncode == 0:
-            return
+            return time.time() - started
         time.sleep(3)
     raise TimeoutError(f"{url} not ready after {limit_s}s")
+
+
+def _loadgen_argv(engine: str, cell: dict, prefix_caching: bool, commit: str, out_dir: str, warmup: int) -> list[str]:
+    return [
+        "loadgen",
+        "-base-url", f"http://127.0.0.1:{PORT}",
+        "-model", MODEL,
+        "-engine", engine,
+        "-bucket", cell["bucket"],
+        "-gpu", GPU,
+        "-dtype", DTYPE,
+        "-commit", commit,
+        "-out", out_dir,
+        "-concurrency", str(cell["concurrency"]),
+        "-requests", str(cell["requests"]),
+        "-warmup", str(warmup),
+        "-max-tokens", str(MAX_TOKENS),
+        "-prefix-caching", str(prefix_caching).lower(),
+    ]
+
+
+def _warm_up(engine: str, prefix_caching: bool, commit: str) -> float:
+    """Discarded pass over every bucket. Absorbs JIT compilation and allocator growth.
+
+    Written to a scratch directory, so nothing here reaches results/.
+    """
+    started = time.time()
+    scratch = "/tmp/warmup"
+    Path(scratch).mkdir(parents=True, exist_ok=True)
+    for bucket in ("short", "medium", "long"):
+        cell = {"bucket": bucket, "concurrency": 4, "requests": 4}
+        subprocess.run(_loadgen_argv(engine, cell, prefix_caching, commit, scratch, 2), capture_output=True)
+    return time.time() - started
 
 
 def _run_cells(engine: str, prefix_caching: bool, cells: list[dict], commit: str) -> list[dict]:
     out_dir = Path("/vol/results")
     out_dir.mkdir(parents=True, exist_ok=True)
-    proc = subprocess.Popen(_server_command(engine, prefix_caching))
+    env = _environment(engine)
+    flags = _server_command(engine, prefix_caching)
+    started = time.time()
+    proc = subprocess.Popen(flags)
     summaries = []
     try:
-        _wait_for_server(proc)
+        ready_s = _wait_for_server(proc, started)
+        warmup_s = _warm_up(engine, prefix_caching, commit)
+        cold_start = {
+            "engine": engine,
+            "prefix_caching": prefix_caching,
+            "server_ready_s": round(ready_s, 1),
+            "warm_up_s": round(warmup_s, 1),
+            "server_flags": flags[1:],
+            **env,
+        }
+        (out_dir / f"coldstart-{engine}-{'pc' if prefix_caching else 'nopc'}.json").write_text(
+            json.dumps(cold_start, indent=2)
+        )
+        print(f"   ready in {ready_s:.0f}s, warm-up {warmup_s:.0f}s", flush=True)
         for cell in cells:
-            argv = [
-                "loadgen",
-                "-base-url",
-                f"http://127.0.0.1:{PORT}",
-                "-model",
-                MODEL,
-                "-engine",
-                engine,
-                "-bucket",
-                cell["bucket"],
-                "-gpu",
-                GPU,
-                "-dtype",
-                DTYPE,
-                "-commit",
-                commit,
-                "-out",
-                str(out_dir),
-                "-concurrency",
-                str(cell["concurrency"]),
-                "-requests",
-                str(cell["requests"]),
-                "-warmup",
-                str(WARMUP),
-                "-max-tokens",
-                str(MAX_TOKENS),
-                "-prefix-caching",
-                str(prefix_caching).lower(),
-            ]
+            argv = _loadgen_argv(engine, cell, prefix_caching, commit, str(out_dir), WARMUP)
             print("+", " ".join(argv), flush=True)
             done = subprocess.run(argv, capture_output=True, text=True)
             if done.returncode != 0:
                 raise RuntimeError(f"{cell} failed: {done.stderr.strip()[:500]}")
-            summaries.append(json.loads(done.stdout))
+            summary = json.loads(done.stdout)
+            summary["environment"] = env
+            summary["server_flags"] = flags[1:]
+            (out_dir / f"{engine}-{cell['bucket']}-c{cell['concurrency']}.json").write_text(
+                json.dumps(summary, indent=2)
+            )
+            summaries.append(summary)
     finally:
         proc.terminate()
         proc.wait(timeout=120)
@@ -230,8 +297,9 @@ def _group(cells: list[Cell]) -> dict[tuple[str, bool], list[dict]]:
 
 
 @app.local_entrypoint()
-def main(confirm: bool = False) -> None:
-    cells = matrix()
+def main(confirm: bool = False, engines: str = "vllm,sglang") -> None:
+    wanted = {e.strip() for e in engines.split(",") if e.strip()}
+    cells = [c for c in matrix() if c.engine in wanted]
     est = estimate(cells)
     print(
         f"{len(cells)} cells on one {GPU}, about {est['total_seconds'] / 60:.1f} GPU-minutes,"

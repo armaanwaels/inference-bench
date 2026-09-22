@@ -1,0 +1,39 @@
+{
+  "engine": "vllm",
+  "model": "Qwen/Qwen2.5-7B-Instruct",
+  "dtype": "bfloat16",
+  "gpu": "L4",
+  "gpu_memory_mib": 20090,
+  "bucket": "short",
+  "concurrency": 8,
+  "prefix_caching": true,
+  "requests": 32,
+  "errors": 0,
+  "max_tokens": 128,
+  "mean_prompt_tokens": 139.6875,
+  "output_tokens": 4096,
+  "wall_seconds": 30.653006115,
+  "output_tokens_per_s": 133.6247409025123,
+  "requests_per_s": 1.0439432883008772,
+  "ttft_ms": {
+    "count": 32,
+    "p50": 269.669,
+    "p95": 277.495,
+    "p99": 277.506,
+    "mean": 228.18868750000001,
+    "min": 77.751,
+    "max": 277.506
+  },
+  "latency_ms": {
+    "count": 32,
+    "p50": 7707.715,
+    "p95": 7714.725,
+    "p99": 7715.192,
+    "mean": 7659.252093750001,
+    "min": 7463.474,
+    "max": 7715.192
+  },
+  "commit": "b4b6929",
+  "timestamp_utc": "2026-09-22T19:30:12Z",
+  "closed_loop": true
+}
