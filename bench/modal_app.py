@@ -310,10 +310,17 @@ def _group(cells: list[Cell]) -> dict[tuple[str, bool], list[dict]]:
 
 
 @app.local_entrypoint()
-def main(confirm: bool = False, engines: str = "vllm,sglang", cache: str = "on,off") -> None:
+def main(confirm: bool = False, engines: str = "vllm,sglang", cache: str = "on,off", concurrency: str = "") -> None:
     wanted = {e.strip() for e in engines.split(",") if e.strip()}
     variants = {c.strip() for c in cache.split(",") if c.strip()}
-    cells = [c for c in matrix() if c.engine in wanted and ("on" if c.prefix_caching else "off") in variants]
+    levels = {int(c) for c in concurrency.split(",") if c.strip()}
+    cells = [
+        c
+        for c in matrix()
+        if c.engine in wanted
+        and ("on" if c.prefix_caching else "off") in variants
+        and (not levels or c.concurrency in levels)
+    ]
     est = estimate(cells)
     print(
         f"{len(cells)} cells on one {GPU}, about {est['total_seconds'] / 60:.1f} GPU-minutes,"
