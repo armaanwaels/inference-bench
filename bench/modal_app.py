@@ -40,7 +40,7 @@ CUDA_DEVEL_TAG = "nvidia/cuda:12.8.1-devel-ubuntu22.04"
 vllm_image = _image("vllm==0.20.2", "huggingface_hub[hf_transfer]==0.36.0")
 sglang_image = (
     modal.Image.from_registry(CUDA_DEVEL_TAG, add_python="3.11")
-    .apt_install("curl")
+    .apt_install("curl", "libnuma1")
     .pip_install("sglang[all]==0.5.2", "huggingface_hub[hf_transfer]==0.36.0")
     .env({"HF_HOME": "/vol/hf", "TOKENIZERS_PARALLELISM": "false"})
     .add_local_file(LOADGEN, "/usr/local/bin/loadgen", copy=True)
@@ -83,13 +83,13 @@ def _image_check(engine: str) -> dict:
             checks["loadgen_runs"] = "-concurrency" in (proc.stdout + proc.stderr)
         cmd = _server_command(engine, prefix_caching=False)
         checks["server_command"] = cmd[-1].startswith("--")
-        checks["engine_module"] = (
-            subprocess.run(
-                [sys.executable, "-c", f"import importlib.util as u; assert u.find_spec('{engine}')"],
-                capture_output=True,
-            ).returncode
-            == 0
-        )
+        # Importing for real is the point: a missing .so only shows up on import.
+        done = subprocess.run([sys.executable, "-c", f"import {engine}"], capture_output=True, text=True)
+        error = (done.stderr or "").strip().splitlines()[-1] if done.returncode else ""
+        needs_gpu = any(word in error for word in ("CUDA", "GPU", "libcuda", "nvml", "Torch not compiled"))
+        checks["engine_import"] = done.returncode == 0 or needs_gpu
+        if error:
+            checks["engine_import_error"] = error[:200]
     checks["ok"] = all(v for k, v in checks.items() if isinstance(v, bool))
     return checks
 
@@ -177,19 +177,32 @@ def _wait_for_server(proc: subprocess.Popen, started: float, limit_s: int = 900)
 def _loadgen_argv(engine: str, cell: dict, prefix_caching: bool, commit: str, out_dir: str, warmup: int) -> list[str]:
     return [
         "loadgen",
-        "-base-url", f"http://127.0.0.1:{PORT}",
-        "-model", MODEL,
-        "-engine", engine,
-        "-bucket", cell["bucket"],
-        "-gpu", GPU,
-        "-dtype", DTYPE,
-        "-commit", commit,
-        "-out", out_dir,
-        "-concurrency", str(cell["concurrency"]),
-        "-requests", str(cell["requests"]),
-        "-warmup", str(warmup),
-        "-max-tokens", str(MAX_TOKENS),
-        "-prefix-caching", str(prefix_caching).lower(),
+        "-base-url",
+        f"http://127.0.0.1:{PORT}",
+        "-model",
+        MODEL,
+        "-engine",
+        engine,
+        "-bucket",
+        cell["bucket"],
+        "-gpu",
+        GPU,
+        "-dtype",
+        DTYPE,
+        "-commit",
+        commit,
+        "-out",
+        out_dir,
+        "-concurrency",
+        str(cell["concurrency"]),
+        "-requests",
+        str(cell["requests"]),
+        "-warmup",
+        str(warmup),
+        "-max-tokens",
+        str(MAX_TOKENS),
+        "-prefix-caching",
+        str(prefix_caching).lower(),
     ]
 
 
