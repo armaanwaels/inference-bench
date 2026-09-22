@@ -29,6 +29,8 @@ def _image(*packages: str) -> modal.Image:
         .pip_install(*packages)
         .env({"HF_HOME": "/vol/hf", "TOKENIZERS_PARALLELISM": "false"})
         .add_local_file(LOADGEN, "/usr/local/bin/loadgen", copy=True)
+        # modal_app.py lands in /root on its own; matrix.py has to be asked for.
+        .add_local_file("bench/matrix.py", "/root/matrix.py", copy=True)
     )
 
 
@@ -38,6 +40,7 @@ cpu_image = (
     modal.Image.debian_slim(python_version="3.11")
     .pip_install("huggingface_hub[hf_transfer]==0.36.0")
     .env({"HF_HOME": "/vol/hf"})
+    .add_local_file("bench/matrix.py", "/root/matrix.py", copy=True)
 )
 
 app = modal.App("inference-bench")
