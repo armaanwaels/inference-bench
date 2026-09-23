@@ -4,7 +4,7 @@ vLLM against SGLang on one model and one GPU, measured by a Go load generator th
 
 ## Problem
 
-Serving comparisons are usually quoted without the settings that decide them: which GPU, which dtype, how long the prompts were, whether prefix caching was on, and where the clock started. This repo pins the model, GPU class, sequence limits and caching mode across both engines, varies concurrency and prompt length, and records every request.
+Serving comparisons are usually quoted without the settings that decide them: which GPU, which dtype, how long the prompts are, whether prefix caching is on, and where the clock starts. This repo pins the model, GPU class, sequence limits and caching mode across both engines, varies concurrency and prompt length, and records every request.
 
 ## Architecture
 
