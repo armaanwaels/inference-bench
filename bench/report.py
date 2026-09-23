@@ -43,10 +43,14 @@ def table(summaries: list[dict]) -> str:
             f" {'' if cost is None else f'${cost:.2f}'} |"
         )
     first = summaries[0]
+    commits = sorted({s["commit"] for s in summaries})
+    stamps = sorted(s["timestamp_utc"] for s in summaries)
     rows.append("")
     rows.append(
         f"Model {first['model']}, dtype {first['dtype']}, GPU {first['gpu']}, "
-        f"max_tokens {first['max_tokens']}, commit {first['commit']}, {first['timestamp_utc']}."
+        f"max_tokens {first['max_tokens']}. Cells measured between {stamps[0]} and {stamps[-1]} "
+        f"at commit{'s' if len(commits) > 1 else ''} {', '.join(commits)}. Each cell's own commit and "
+        f"timestamp are in its JSON file."
     )
     return "\n".join(rows) + "\n"
 
@@ -76,11 +80,9 @@ def environment_block(cold: list[dict]) -> str:
     if not cold:
         return ""
     rows = ["", "## Environment", ""]
-    for c in sorted(cold, key=lambda x: x["engine"]):
-        if any(r.startswith(f"**{c['engine']}") for r in rows):
-            continue
+    for c in sorted(cold, key=lambda x: (x["engine"], not x["prefix_caching"])):
         rows += [
-            f"**{c['engine']} {c['engine_version']}**",
+            f"**{c['engine']} {c['engine_version']}, prefix caching {'on' if c['prefix_caching'] else 'off'}**",
             "",
             f"- GPU: {c['gpu_name']}, driver {c['driver_version']}, {c['gpu_memory_total']}",
             f"- Base image: {c['cuda_base_image']}",

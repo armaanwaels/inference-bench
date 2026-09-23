@@ -1,8 +1,8 @@
 {
   "engine": "vllm",
   "prefix_caching": false,
-  "server_ready_s": 155.3,
-  "warm_up_s": 50.5,
+  "server_ready_s": 85.1,
+  "warm_up_s": 51.0,
   "server_flags": [
     "-m",
     "vllm.entrypoints.openai.api_server",
