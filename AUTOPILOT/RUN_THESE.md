@@ -1,28 +1,36 @@
 # Commands for Armaan to run
 
-The autopilot has no GPU and no keys. Every step that needs a GPU or a model API is listed here
-as exact commands with the files they should produce. Armaan runs them and commits the result
-files. Until those files are committed, no number from them appears anywhere in this repository.
+Since Nov 26, 2026 GPU steps run through the GitHub Actions workflow described in the "GPU runs"
+section of `PLAN.md`. The workflow runs them on Modal and commits the result files to
+`autopilot`. This file now holds only what cannot be done through that workflow. The autopilot
+itself still has no GPU and no keys. Until result files are committed, no number from them
+appears anywhere in this repository.
 
 ## How entries are written
 
 Each entry has:
 
 - **Added**: the date and the slice that added it.
+- **Why the workflow cannot do it**: one line.
 - **Needs**: what must be set up first (for example a Modal login, done by Armaan on his machine).
 - **Commit to run from**: the commit the commands were written for.
 - **Commands**: copy and paste, in order. The first command of every entry prints the plan and
   the cost estimate and spends nothing.
 - **Expected files**: the exact paths that should exist afterwards.
-- **Then**: what to commit, and on which branch.
+- **Then**: what to commit, and on which branch. Add a row to `results/SPEND.md` for any GPU time
+  used, so the budget total stays right.
 - **Status**: open, or done with the date and the commit that added the files.
 
 ## Entries
 
-None yet. Nothing needs a GPU until the correctness suite can run against a real engine.
+None. Nothing is waiting for Armaan.
 
-Planned entries, so the GPU time can be booked in one sitting after Jan 5, 2027:
+## What could land here
 
-1. After slice 15: correctness runs, each engine in default mode and in deterministic mode.
-2. After slice 20: repeated benchmark runs of the existing 21 cells.
-3. After slice 29: a candidate run set on a newer engine release, then the gate command.
+- The workflow cannot reach Modal or cannot push to `autopilot` (a secret is missing or expired,
+  or Actions lacks write permission). LOG.md will say so at the top, and the fix or the fallback
+  commands will be listed here.
+- A run that needs more than the workflow allows (above 60 GPU minutes in one request, or another
+  GPU type).
+- The upstream patch. It is not a command list: Armaan writes and submits it himself, from the
+  notes in `UPSTREAM.md`.

@@ -10,8 +10,11 @@ pull requests written by an agent.
 
 ## Status on Nov 26, 2026
 
-No candidates yet. No issue tracker has been read yet. Slice 2 (due Nov 28, 2026) is the first
-scouting slice.
+No candidates yet. No issue tracker has been read yet. Slice 2 is the first scouting slice.
+
+Since the Nov 26 plan revision, a reproduction that needs a GPU can be run by the GPU workflow
+(see "GPU runs" in `PLAN.md`), under the same budget and one request per day rules. The result
+file path is then recorded with the candidate.
 
 ## How a candidate is recorded
 
@@ -22,7 +25,8 @@ scouting slice.
 - Status as seen, and the date seen: (open or closed, labels, assignee, last activity)
 - Why it fits: (which part of this repository exercises it)
 - Reproduction steps: (exact commands; say whether they need a GPU)
-- Reproduction run by: (nobody yet / Armaan on <date>, with the result file path)
+- Reproduction run by: (nobody yet / the GPU workflow on <date> / Armaan on <date>, with the
+  result file path)
 - What a fix or contribution would need: (tests the maintainers ask for, files likely involved)
 - Notes from the thread: (what maintainers asked for; facts only)
 ```
