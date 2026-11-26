@@ -197,8 +197,8 @@ Status key: `[ ]` not started, `[x]` done (with date). "Scout" slices only read 
 
 ### Part A: scripted mock server (goal 4)
 
-- [ ] **1. Mock server: models and plain completions.** `bench/mock_server.py` on the standard
-  library HTTP server. `GET /v1/models`, `POST /v1/completions` without streaming. Output tokens
+- [x] **1. Mock server: models and plain completions.** Done Nov 26, 2026.
+  `bench/mock_server.py` on the standard library HTTP server. `GET /v1/models`, `POST /v1/completions` without streaming. Output tokens
   are a pure function of (prompt, seed, position), so the same request always gets the same
   tokens. Returns `usage` with prompt and completion token counts. Honours `max_tokens`.
   Test: start on an ephemeral port, same request twice gives identical text, different prompts
