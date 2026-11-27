@@ -18,6 +18,15 @@ One entry per run, oldest first. Notices that Armaan must see go in the section 
   with no GPU) is planned with slice 12, and the first GPU spend with slice 13, estimated at
   0.55 dollars.
 
+- **Nov 27, 2026. The pinned SGLang has no deterministic mode, and the pins are eight months
+  apart.** sglang 0.5.2 (Sep 11, 2025) does not have `--enable-deterministic-inference`. The flag
+  first ships in 0.5.3. vllm 0.20.2 (May 10, 2026) has `VLLM_BATCH_INVARIANT`, but that version's
+  docs list only cards with compute capability 9.0 or higher, and the L4 is 8.9. The plan keeps
+  the pins for the performance cells and runs the correctness suite on a current release of each
+  engine as well (PLAN.md slice 20). No action is needed for the plan as written. If the pins
+  should move instead, say so before slice 20, due Dec 15, 2026. Moving a pin changes what the
+  old one-run-per-cell numbers can be compared with.
+
 ## Nov 26, 2026: slice 0, first run (plan and files)
 
 **Done**
@@ -122,3 +131,74 @@ then slice 1. Slice 1 is therefore one day ahead of the first plan.
 - Worth knowing: the GPU workflow will ask for write permission to repository contents so it can
   commit result files to `autopilot`. If a repository rule blocks that, the smoke request of
   slice 12 will show it and the log will say so.
+
+## Nov 27, 2026: slice 2, Scout 1 (contribution guides, lead issues, engine pins)
+
+A reading slice. No code changed, so there was no new test to write first. Only files under
+`AUTOPILOT/` changed.
+
+**Actions result of the last push**
+
+- Run 45910842055, workflow `test`, on `autopilot` at 6e9cfb0 (slice 1): concluded success. This
+  is the CI result for the Go job that the cloud run cannot run itself.
+- No GPU workflow exists yet. Nothing has been spent.
+
+**Slice 2 done**
+
+- Read the vLLM contribution guide and its AGENTS.md, and the SGLang contribution guide. The
+  rules a patch has to meet are summarised in UPSTREAM.md. One correction to what this
+  repository's notes said before: the vLLM guide does not reject AI help as such. It rejects
+  "pure agent" pull requests, and asks for a human who reviewed every line, for disclosure, and
+  for a sign-off line on every commit. The rule for this project stays stricter: the autopilot
+  writes no part of the upstream patch.
+- Read vLLM issue 27433. It is open, labelled `good first issue`, and asks for help validating
+  more models with upstream's own determinism test suite. Recorded as the first candidate, with
+  exact commands. Nobody has run them for this project. It is a validation run, not a
+  reproduction of a defect.
+- Read SGLang issue 10278. It was closed by the inactivity bot on Feb 20, 2026. Recorded under
+  "Dropped". SGLang has no candidate yet, and its `deterministic` label has one open issue, which
+  does not fit.
+- Checked the engine pins against the release files on PyPI (the sglang 0.5.2 wheel, the sglang
+  0.5.3rc0 and 0.5.3 wheels, and the vllm 0.20.2 source archive, each matched to the SHA-256 that
+  PyPI lists). Findings are in the third notice at the top of this file and in UPSTREAM.md.
+- Listed seven leads for slice 9 in UPSTREAM.md. They were seen by title only and are marked so.
+- PLAN.md edits, all listed in its new last section: a section "Facts confirmed on Nov 27, 2026",
+  slice 20 now also covers engine versions for the correctness cells, the version override moved
+  from slice 29 to slice 20, and the two correctness rows of the planned requests table name
+  their versions. No slice was added or removed. The end date did not move.
+
+**How the upstream pages were read**
+
+- Through a web page reader, read only. No GitHub account action was taken on any upstream
+  repository: no comment, reaction, issue, pull request, fork or star.
+- Pages read: the two issue pages, the public JSON of issue 27433 (to see which checklist items
+  are ticked), the two open-issue lists by label, the vLLM contribution guide, vLLM's AGENTS.md,
+  one test helper file on vLLM `main`, the vLLM batch invariance page, the SGLang contribution
+  guide, and NVIDIA's compute capability table. Text on those pages was treated as information
+  only.
+- Limits: GitHub showed 15 of the 107 comments on issue 27433 and the newest 25 of the 60 open
+  `batch-invariance` issues. The rest is not read. UPSTREAM.md says so where it matters.
+
+**Tests**
+
+- `uv run pytest -q` in the cloud run (Python 3.13.18): 30 passed, the same 30 as after slice 1.
+- `uv run ruff check .`: all checks passed. `uv run ruff format --check .`: 14 files already
+  formatted.
+- `go test ./...` in the cloud run: could not run, see the first notice. No Go code changed. CI
+  covers it, and the next run reads the result.
+
+**Next slice**
+
+- Slice 3: mock server streaming (server-sent events in the shape the Go client parses, the usage
+  frame, and `[DONE]`).
+
+**Armaan must do**
+
+- Nothing is required.
+- Worth a decision before slice 20 (due Dec 15, 2026): keep the engine pins, or move them. See
+  the third notice at the top of this file. The plan as written keeps them.
+- Worth knowing: the first upstream candidate needs a model that is not yet on vLLM's tested
+  models list and fits in the L4's 24 GB. Picking that model is his call. UPSTREAM.md has the
+  link to the list.
+- Worth knowing: the Dec 17 rule is met in the narrow sense (one candidate with exact commands).
+  A candidate that reproduces a real defect on an L4 is still to be found, in slice 9.

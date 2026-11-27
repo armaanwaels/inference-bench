@@ -3,6 +3,8 @@
 Written Nov 26, 2026 by the first autopilot run, from commit 82ce8d4 on `main`.
 Revised once, later on Nov 26, 2026, after Armaan added automated GPU runs to the task. The
 revision is described in "What changed in the Nov 26 revision" at the end of this file.
+Smaller edits made by later slices are listed in "Edits after the Nov 26 revision", also at the
+end.
 
 One slice per daily run. Slice 1 was done on Nov 26, 2026. With no lost days slice N lands on
 Nov 25 plus N days, so slice 37 lands on Jan 1, 2027, inside the allowed window (not before
@@ -122,12 +124,13 @@ The 21 cells of one pass are estimated at 26.3 GPU minutes and 0.55 dollars.
 | smoke | 12 | Does the workflow build, reach Modal, commit files and write the ledger | no GPU, about a cent of CPU |
 | repeats r01 | 13 | Does a repeated pass work end to end, and how far does a second pass move | 0.55 dollars |
 | repeats r02, r03, r04, r05 | 14, 16, 17, 18 | More passes for the intervals, one pass per request | 0.55 dollars each |
-| correctness, vLLM | 22 | Does output change with batch size, in default and batch-invariant mode | set in slice 20, at most 1.24 dollars |
-| correctness, SGLang | 23 | The same for SGLang, default and deterministic mode | set in slice 20, at most 1.24 dollars |
+| correctness, vLLM | 22 | Does output change with batch size, in default and batch-invariant mode, on the pin and on one current release | set in slice 20, at most 1.24 dollars a request |
+| correctness, SGLang | 23 | The same for SGLang: default mode on the pin, default and deterministic mode on one current release | set in slice 20, at most 1.24 dollars a request |
 | candidate c01 to c03 | 29 to 31 | A run set on a newer engine release, for the gate | about 0.55 dollars a pass |
 
-One pass per request keeps every request well under the 60 minute cap. Planned total: under
-10 dollars. A reproduction of an upstream issue may add one or two small
+One pass per request keeps every request well under the 60 minute cap. If a correctness request
+cannot hold two engine versions under the cap, it is split in two, on two days, and the current
+release goes first. Planned total: under 10 dollars. A reproduction of an upstream issue may add one or two small
 requests. Nothing in this plan needs more than 25 dollars, so the 100 dollar limit is far away,
 and the checks above hold it even if a plan is wrong.
 
@@ -143,9 +146,28 @@ and the checks above hold it even if a plan is wrong.
   backends. The page says radix cache is not supported with flashinfer in this mode, and points to
   roadmap issue 10278 and a test module `sglang.test.test_deterministic`.
   Source: https://docs.sglang.io/docs/advanced_features/deterministic_inference.md
-- Not yet checked: whether sglang 0.5.2 (the pin) already has that flag, and what the vLLM 0.20.2
-  page says. Slice 2 checks both. If the pin is too old, the plan gains a note for Armaan, because
-  changing an engine pin changes what the old numbers can be compared with.
+- Not yet checked on Nov 26: whether sglang 0.5.2 (the pin) already has that flag, and what the
+  vLLM 0.20.2 page says. Slice 2 checked both, see the next section.
+
+## Facts confirmed on Nov 27, 2026 (slice 2)
+
+Checked against the release files on PyPI. The details and the sources are in `UPSTREAM.md`,
+section "Engine versions and their deterministic modes".
+
+- **sglang 0.5.2 has no deterministic mode.** The flag `--enable-deterministic-inference` first
+  appears in the final release 0.5.3 (Oct 6, 2025). The pin was released Sep 11, 2025. The newest
+  release on Nov 27, 2026 is 0.5.23.
+- **vllm 0.20.2 has `VLLM_BATCH_INVARIANT`.** Its own docs page asks for compute capability 9.0 or
+  higher. The L4 is 8.9. The 0.20.2 code has a path for 8.x cards, and the current docs (0.34.0)
+  say 8.0 or higher. Whether the mode holds on an L4 at the pin is a question for the correctness
+  run, not something to assume.
+- **The pins are eight months apart.** vllm 0.20.2 is from May 10, 2026 and sglang 0.5.2 from
+  Sep 11, 2025. The old one-run-per-cell numbers compare those two releases.
+- **What the plan does about it (slice 20).** The performance cells stay on the pins, so repeats
+  stay comparable with the old numbers. The correctness cells name their engine version: both
+  engines are also run on one current release, and SGLang's deterministic mode is run only there.
+  An upstream report needs a current release in any case. Changing the pins themselves is
+  Armaan's decision and is not part of this plan.
 
 ## Go in the cloud run
 
@@ -203,7 +225,7 @@ Status key: `[ ]` not started, `[x]` done (with date). "Scout" slices only read 
   tokens. Returns `usage` with prompt and completion token counts. Honours `max_tokens`.
   Test: start on an ephemeral port, same request twice gives identical text, different prompts
   differ, usage adds up, unknown path gives 404.
-- [ ] **2. Scout 1.** Read both contribution guides (rules on tests, sign-off, AI-written
+- [x] **2. Scout 1.** Done Nov 27, 2026. Read both contribution guides (rules on tests, sign-off, AI-written
   changes). Read vLLM issue 27433 and SGLang issue 10278. Confirm which engine versions have the
   deterministic modes and whether the pins (vllm 0.20.2, sglang 0.5.2) do. Record the first
   candidates in `UPSTREAM.md`.
@@ -300,10 +322,19 @@ Status key: `[ ]` not started, `[x]` done (with date). "Scout" slices only read 
   (temperature above 0 with a fixed seed). The exact request fields per engine come from the docs
   read in the scout slices. The profile is part of every record and of the hash input description.
   Test: the mock honours the seed, same seed matches, different seeds differ.
-- [ ] **20. Engine modes.** Server commands and environment for each engine in default mode and
-  in deterministic mode (`VLLM_BATCH_INVARIANT=1`; `--enable-deterministic-inference` with a
-  supported attention backend). Correctness cells added to `matrix.py` with their own time and
-  cost estimate. Test: pure functions only (commands, environment, cell list, estimate).
+- [ ] **20. Engine modes and engine versions.** Server commands and environment for each engine in
+  default mode and in deterministic mode (`VLLM_BATCH_INVARIANT=1`;
+  `--enable-deterministic-inference` with a supported attention backend). The pinned sglang 0.5.2
+  has no deterministic mode (slice 2), so every correctness cell names its engine version, and the
+  Modal app can build an image for a version other than the pin. The version is recorded in every
+  result. Unless Armaan says otherwise: vLLM cells run on the pin 0.20.2 and on one current
+  release, SGLang default cells run on the pin 0.5.2 and on one current release, and SGLang
+  deterministic cells run on that current release only. The current releases are chosen in this
+  slice, after reading their docs pages for the mode, and written into `matrix.py` with the date.
+  The pins used by the performance cells do not change. Correctness cells are added to
+  `matrix.py` with their own time and cost estimate. Test: pure functions only (commands,
+  environment, package list per version, cell list, estimate). If this is too much for one
+  review, the version part is split off as its own slice (rule 9).
 - [ ] **21. Scout 4.** Rewrite the reproduction steps of the best candidates as commands of this
   repository's correctness suite, so the workflow can run them. Check the Dec 17 rule early.
 - [ ] **22. Modal entry point for correctness. Request: correctness, vLLM.** An entry point that
@@ -340,9 +371,10 @@ Status key: `[ ]` not started, `[x]` done (with date). "Scout" slices only read 
 
 ### Part F: release gate (goal 3)
 
-- [ ] **29. Candidate engine versions. Request: candidate c01.** Engine versions can be
-  overridden for a candidate run and are recorded in every result. Results go to
-  `results/candidate/<name>/rNN/`. Test: version plumbing as pure functions. The request is one
+- [ ] **29. Candidate engine versions. Request: candidate c01.** The version override from
+  slice 20 is used for a full performance pass: engine versions can be set for a candidate run
+  and are recorded in every result. Results go to `results/candidate/<name>/rNN/`. Test: version
+  plumbing as pure functions. The request is one
   pass on a newer engine release. Requests c02 and c03 follow with slices 30 and 31 if c01 was
   sound.
 - [ ] **30. Gate policy file.** `gate.toml`: threshold per metric (throughput drop, TTFT and
@@ -382,6 +414,9 @@ Status key: `[ ]` not started, `[x]` done (with date). "Scout" slices only read 
 3. Choose the upstream issue from `UPSTREAM.md`, then write and submit the patch himself.
 4. Optional: compare `results/SPEND.md` with the Modal billing page now and then.
 5. Pause or delete the scheduled task when the plan is done, at the latest Jan 25, 2027.
+6. Optional, before slice 20 (due Dec 15, 2026 with no lost days): decide whether the engine pins
+   should move. The plan as written keeps them and runs the correctness suite on a current
+   release as well. See "Facts confirmed on Nov 27, 2026".
 
 ## What changed in the Nov 26 revision
 
@@ -403,3 +438,14 @@ files. The task now allows GPU runs through a GitHub Actions workflow, so:
   30 to 37.
 - The plan grew from 30 to 37 slices and the end date moved from Dec 26, 2026 to Jan 1, 2027,
   still inside the window.
+
+## Edits after the Nov 26 revision
+
+- **Nov 27, 2026 (slice 2).** The pinned sglang 0.5.2 turned out to have no deterministic mode,
+  and the vLLM 0.20.2 docs do not list the L4 for batch invariance. Added the section "Facts
+  confirmed on Nov 27, 2026". Slice 20 now also covers engine versions for correctness cells
+  (both engines on the pin and on one current release, SGLang's deterministic mode on the current
+  release only). The version override moved from slice 29 to slice 20, and slice 29 reuses it. The
+  two correctness rows of the planned requests table say which versions they cover, and a
+  correctness request that cannot hold two versions under the time cap is split over two days.
+  No slice was added or removed, and the end date did not move.
